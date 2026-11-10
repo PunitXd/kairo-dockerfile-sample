@@ -1,0 +1,11 @@
+{
+  "name": "kairo-dockerfile-sample",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A tiny app with its own Dockerfile, for Kairo's P2 checks",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  }
+}
