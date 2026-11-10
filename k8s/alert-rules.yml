@@ -1,0 +1,60 @@
+# Kairo alert rules for kairo-dockerfile-sample (FR-44). Prometheus loads this from the
+# ConfigMap monitoring/kairo-alert-rules. The names are fixed: remediation maps
+# each one to an action (src/remediation/action/decision.service.js).
+# Every alert carries the app label; pod and namespace come from the series.
+groups:
+  - name: kairo-kairo-dockerfile-sample
+    rules:
+      # a pod that is running but failing its readiness probe
+      - alert: KairoAppDown
+        expr: |
+          (kube_pod_status_ready{namespace="kairo-kairo-dockerfile-sample", condition="true"} == 0)
+          and on (namespace, pod)
+          (kube_pod_status_phase{namespace="kairo-kairo-dockerfile-sample", phase="Running"} == 1)
+        for: 1m
+        labels:
+          app: kairo-dockerfile-sample
+        annotations:
+          summary: "kairo-dockerfile-sample is not answering its health check"
+
+      # restarted in the last 5 minutes, and the last exit was the memory limit
+      - alert: KairoOOMKilled
+        expr: |
+          (increase(kube_pod_container_status_restarts_total{namespace="kairo-kairo-dockerfile-sample", container="kairo-dockerfile-sample"}[5m]) > 0)
+          and on (namespace, pod, container)
+          (kube_pod_container_status_last_terminated_reason{namespace="kairo-kairo-dockerfile-sample", container="kairo-dockerfile-sample", reason="OOMKilled"} == 1)
+        for: 0s
+        labels:
+          app: kairo-dockerfile-sample
+        annotations:
+          summary: "kairo-dockerfile-sample went over its 256Mi memory limit"
+
+      - alert: KairoCrashLoop
+        expr: |
+          kube_pod_container_status_waiting_reason{namespace="kairo-kairo-dockerfile-sample", container="kairo-dockerfile-sample", reason="CrashLoopBackOff"} == 1
+        for: 1m
+        labels:
+          app: kairo-dockerfile-sample
+        annotations:
+          summary: "kairo-dockerfile-sample keeps crashing on startup"
+
+      # share of the 500m CPU limit, per pod
+      - alert: KairoHighCpu
+        expr: |
+          sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace="kairo-kairo-dockerfile-sample", container="kairo-dockerfile-sample"}[1m])) / 0.5 > 0.8
+        for: 1m
+        labels:
+          app: kairo-dockerfile-sample
+        annotations:
+          summary: "kairo-dockerfile-sample is using over 80% of its CPU limit"
+
+      # 95th percentile through Traefik. No traffic gives no value, so no alert
+      - alert: KairoHighLatency
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(traefik_service_request_duration_seconds_bucket{service=~"kairo-kairo-dockerfile-sample-kairo-dockerfile-sample-.*"}[2m]))) > 1
+        for: 2m
+        labels:
+          app: kairo-dockerfile-sample
+          namespace: kairo-kairo-dockerfile-sample
+        annotations:
+          summary: "kairo-dockerfile-sample answers slower than 1 s (p95)"

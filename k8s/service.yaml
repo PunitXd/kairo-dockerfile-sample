@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kairo-dockerfile-sample
+  namespace: kairo-kairo-dockerfile-sample
+  labels:
+    app: kairo-dockerfile-sample
+    app.kubernetes.io/managed-by: kairo
+spec:
+  # cluster-internal only: all outside traffic comes in through Traefik's
+  # Ingress, so request metrics are always counted (FR-39)
+  type: ClusterIP
+  selector:
+    app: kairo-dockerfile-sample
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
