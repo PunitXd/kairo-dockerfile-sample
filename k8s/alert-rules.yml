@@ -38,11 +38,13 @@ groups:
         annotations:
           summary: "kairo-dockerfile-sample keeps crashing on startup"
 
-      # share of the 500m CPU limit, per pod
+      # share of the 500m CPU limit, per pod. A 30 s rate and 15 s
+      # wait so 60 s of Send Traffic trips it (P3): with [1m] and 1 min the
+      # rate needs ~48 s to pass 80% and the load is over before it fires
       - alert: KairoHighCpu
         expr: |
-          sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace="kairo-kairo-dockerfile-sample", container="kairo-dockerfile-sample"}[1m])) / 0.5 > 0.8
-        for: 1m
+          sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace="kairo-kairo-dockerfile-sample", container="kairo-dockerfile-sample"}[30s])) / 0.5 > 0.8
+        for: 15s
         labels:
           app: kairo-dockerfile-sample
         annotations:
