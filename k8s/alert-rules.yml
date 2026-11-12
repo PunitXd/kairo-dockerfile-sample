@@ -5,12 +5,17 @@
 groups:
   - name: kairo-kairo-dockerfile-sample
     rules:
-      # a pod that is running but failing its readiness probe
+      # a pod that is running but failing its readiness probe. A pod whose
+      # container restarted in the last 5 minutes is left to the crash-loop
+      # and OOM rules below: restarting a crash-looping new release doesn't
+      # help, and once it kept the rollback from happening (P3c)
       - alert: KairoAppDown
         expr: |
           (kube_pod_status_ready{namespace="kairo-kairo-dockerfile-sample", condition="true"} == 0)
           and on (namespace, pod)
           (kube_pod_status_phase{namespace="kairo-kairo-dockerfile-sample", phase="Running"} == 1)
+          unless on (namespace, pod)
+          (increase(kube_pod_container_status_restarts_total{namespace="kairo-kairo-dockerfile-sample", container="kairo-dockerfile-sample"}[5m]) > 0)
         for: 1m
         labels:
           app: kairo-dockerfile-sample
@@ -29,10 +34,12 @@ groups:
         annotations:
           summary: "kairo-dockerfile-sample went over its 256Mi memory limit"
 
+      # 30 s, not 1 min (P3c, pre-approved): with 1 min, scraping and
+      # Alertmanager's wait put Break It's rollback at 83 to 128 s, over 2 min
       - alert: KairoCrashLoop
         expr: |
           kube_pod_container_status_waiting_reason{namespace="kairo-kairo-dockerfile-sample", container="kairo-dockerfile-sample", reason="CrashLoopBackOff"} == 1
-        for: 1m
+        for: 30s
         labels:
           app: kairo-dockerfile-sample
         annotations:
