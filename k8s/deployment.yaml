@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kairo-dockerfile-sample
+  namespace: kairo-kairo-dockerfile-sample
+  labels:
+    app: kairo-dockerfile-sample
+    app.kubernetes.io/managed-by: kairo
+spec:
+  replicas: 1
+  # rollback needs old ReplicaSets to still be around
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: kairo-dockerfile-sample
+  template:
+    metadata:
+      labels:
+        app: kairo-dockerfile-sample
+        app.kubernetes.io/managed-by: kairo
+    spec:
+      containers:
+        - name: kairo-dockerfile-sample
+          image: kairo/kairo-dockerfile-sample:3740cee5aa33a294ce8b70d635e467dda5bbf061
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          # liveness + memory limit are what make self-healing possible.
+          # don't remove them without talking to BE 2
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
